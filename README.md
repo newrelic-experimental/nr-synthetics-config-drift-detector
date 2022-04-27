@@ -1,58 +1,73 @@
 [![New Relic Experimental header](https://github.com/newrelic/opensource-website/raw/master/src/images/categories/Experimental.png)](https://opensource.newrelic.com/oss-category/#new-relic-experimental)
 
-# [Project Name] 
-![GitHub forks](https://img.shields.io/github/forks/newrelic-experimental/newrelic-experimental-FIT-template?style=social)
-![GitHub stars](https://img.shields.io/github/stars/newrelic-experimental/newrelic-experimental-FIT-template?style=social)
-![GitHub watchers](https://img.shields.io/github/watchers/newrelic-experimental/newrelic-experimental-FIT-template?style=social)
+# Drifter - New Relic Config Drift Detector
+![GitHub forks](https://img.shields.io/github/forks/newrelic-experimental/nr-synthetics-config-drift-detector?style=social)
+![GitHub stars](https://img.shields.io/github/stars/newrelic-experimental/nr-synthetics-config-drift-detector?style=social)
+![GitHub watchers](https://img.shields.io/github/watchers/newrelic-experimental/nr-synthetics-config-drift-detector?style=social)
 
-![GitHub all releases](https://img.shields.io/github/downloads/newrelic-experimental/newrelic-experimental-FIT-template/total)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/newrelic-experimental/newrelic-experimental-FIT-template)
-![GitHub last commit](https://img.shields.io/github/last-commit/newrelic-experimental/newrelic-experimental-FIT-template)
-![GitHub Release Date](https://img.shields.io/github/release-date/newrelic-experimental/newrelic-experimental-FIT-template)
-
-
-![GitHub issues](https://img.shields.io/github/issues/newrelic-experimental/newrelic-experimental-FIT-template)
-![GitHub issues closed](https://img.shields.io/github/issues-closed/newrelic-experimental/newrelic-experimental-FIT-template)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/newrelic-experimental/newrelic-experimental-FIT-template)
-![GitHub pull requests closed](https://img.shields.io/github/issues-pr-closed/newrelic-experimental/newrelic-experimental-FIT-template)
+![GitHub all releases](https://img.shields.io/github/downloads/newrelic-experimental/nr-synthetics-config-drift-detector/total)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/newrelic-experimental/nr-synthetics-config-drift-detector)
+![GitHub last commit](https://img.shields.io/github/last-commit/newrelic-experimental/nr-synthetics-config-drift-detector)
+![GitHub Release Date](https://img.shields.io/github/release-date/newrelic-experimental/nr-synthetics-config-drift-detector)
 
 
->[Brief description - what is the project and value does it provide? How often should users expect to get releases? How is versioning set up? Where does this project want to go?]
+![GitHub issues](https://img.shields.io/github/issues/newrelic-experimental/nr-synthetics-config-drift-detector)
+![GitHub issues closed](https://img.shields.io/github/issues-closed/newrelic-experimental/nr-synthetics-config-drift-detector)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/newrelic-experimental/nr-synthetics-config-drift-detector)
+![GitHub pull requests closed](https://img.shields.io/github/issues-pr-closed/newrelic-experimental/nr-synthetics-config-drift-detector)
 
-## Value 
 
-|Metrics | Events | Logs | Traces | Visualization | Automation |
-|:-:|:-:|:-:|:-:|:-:|:-:|
-|:white_check_mark:|:white_check_mark:|:x:|:white_check_mark:|:x:|:x:|
+This New Relic synthetic script can be run regularly to watch for configuration drift with your New Relic resources. You specify a graphQL (or NRQL) query and identify the fields you care about and the script determines if the configuration has changed since the last run. If a change is detected the synthetic will assert a failure. The data is also reported as event data toe New Relic where it can be charted and alerted on.
 
-### List of Metrics,Events,Logs,Traces 
-|Name | Type | Description |
-|:-:|:-:|:-:|
-|*metric.name* | Metric| *description*|
-|*event.name* | Event|  *description*|
-|*log.name* | Log|  *description*|
-|*trace.name*| Trace| *description*
-|---|---|---|
+You can use this generalised script to detect all manner of different resource configurations. Anything that can be queried in GraphQL (and as an extension NRQL) can be candidates.
 
-## Installation
+Here are a few examples:
 
-> [Include a step-by-step procedure on how to get your code installed. Be sure to include any third-party dependencies that need to be installed separately]
+* Dashboards
+* NRQL Alert conditions in a policy
+* Notification channel subscriptions
+* Drop rules
+* New AWS instance types
 
-## Getting Started
 
->[Simple steps to start working with the software similar to a "Hello World"]
+## How it works
+You provide a Graphql query that retrieves the data you care about. The script generates a unique hash for this and stores is in New Relic. When the script runs again later it re-runs the query and compares the new hash with the preivous. If they are different a fail is asserted.
 
-## Usage
+## Setup
+* Create a daily (or hourly) synthetic journey and add the `drifter.js` script to it. Configure the script with your account ID and account region. These control where the data is stored by the script.
+* Create two secure credentials
+* Define the configuration resources you want to analyse in the `runRules()` by calling `await detectDrift(YOUR-CONFIG)`. You can call multiple times with different configurations.
+* The configuration is an **array** of config rules each with the following shape (check out the examples in the script):
+```
+await detectDrift([
+    { 
+        name: `Name of your config rule`,       // name of your config
+        query :`GQL query here`,                // GQL query
+        variables : {}                          // GQL variables object
+        key: `YOUR-KEY`,                        // Hash key that the hash is stored against. Must be unique per config rule.
+        matchFields: [                          // Defines what data in the GQL response to match on. Supports more than one.
+            {
+                dataObject: "reference",        // Root field that contains the data, e.g. "data.actor.entity" or "data.actor.account.nrql.results[0].instanceTypes"
+                components: []                  // sub fields to consider (if empty array , which is usually the case, the entire root object defined above is used )
+            }
+        ]
+    }
+])
+```
 
->[**Optional** - Include more thorough instructions on how to use the software. This section might not be needed if the Getting Started section is enough. Remove this section if it's not needed.]
+## Optional Config
+* **CUSTOM_EVENT_TYPE** - This is the name of the custom event where data is stored and referenced. You can change this if you want to specify your own event type. You may wish to do this if running multiple copies of the script with overlapping configuration names.
+* **LOOK_BACK** - Controls how far back in time we look for previous configuration hashes. This should be greater than the frequency of the script running. 
 
-## Building
+## Running locally
+You can run the script locally to test:
 
->[**Optional** - Include this section if users will need to follow specific instructions to build the software from source. Be sure to include any third party build dependencies that need to be installed separately. Remove this section if it's not needed.]
+First install the dependencies:
+`npm install`
 
-## Testing
+Then run with:
+`node drifter.js`
 
->[**Optional** - Include instructions on how to run tests if we include tests with the codebase. Remove this section if it's not needed.]
 
 ## Support
 
@@ -63,7 +78,7 @@ New Relic has open-sourced this project. This project is provided AS-IS WITHOUT 
 
 ## Contributing
 
-We encourage your contributions to improve [Project Name]! Keep in mind when you submit your pull request, you'll need to sign the CLA via the click-through using CLA-Assistant. You only have to sign the CLA one time per project. If you have any questions, or to execute our corporate CLA, required if your contribution is on behalf of a company, please drop us an email at opensource@newrelic.com.
+We encourage your contributions to improve Drifter! Keep in mind when you submit your pull request, you'll need to sign the CLA via the click-through using CLA-Assistant. You only have to sign the CLA one time per project. If you have any questions, or to execute our corporate CLA, required if your contribution is on behalf of a company, please drop us an email at opensource@newrelic.com.
 
 **A note about vulnerabilities**
 
@@ -73,6 +88,6 @@ If you believe you have found a security vulnerability in this project or any of
 
 ## License
 
-[Project Name] is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) License.
+Drifter is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) License.
 
->[If applicable: [Project Name] also uses source code from third-party libraries. You can find full details on which libraries are used and the terms under which they are licensed in the third-party notices document.]
+Drifter also uses source code from third-party libraries. You can find full details on which libraries are used and the terms under which they are licensed in the third-party notices document.]
