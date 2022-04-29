@@ -127,7 +127,8 @@ const recordLatestHash = async (metricsData) => {
         timestamp: Math.round(Date.now()/1000),
         hashValue: metric.hash,
         hashKey: metric.config.key+"", //make sure its a string
-        hashMatch: metric.match
+        hashMatch: metric.match,
+        configName: metric.config.name+"",
     }})
     await sendEventDataToNewRelic(eventsPayload)
  
@@ -571,7 +572,7 @@ const drift_NRQLPolicyConditions = async () => {
                 }
               }`,
             variables : {
-                "accountId": accountID,
+                "accountId": parseInt(accountID),
                 "policyId": policyID
               },
             key: `POLICY-${policyID}`,
@@ -680,42 +681,42 @@ async function runRules()  {
 
     //here are some examples wrapped in helper functions ----------------------------------
     await drift_NotificationChannels()
-    // await drift_Dashboard()
-    // await drift_Dashboard2()
-    // await drift_NRQLPolicyConditions()
-    // await drift_DropRules() 
-    // await drift_NRQLExample1()
+    await drift_Dashboard()
+    await drift_Dashboard2()
+    await drift_NRQLPolicyConditions()
+    await drift_DropRules() 
+    await drift_NRQLExample1()
 
 
-    // //an inline example (no helper function)
-    // await detectDrift([{ 
-    //     name: `Inline Dashboard example`,                            //name of your config
-    //     query :`query ($guid: EntityGuid!){                         
-    //         actor {
-    //           entity(guid: $guid) {
-    //             ... on DashboardEntity {
-    //               name
-    //               guid
-    //               pages {
-    //                 updatedAt
-    //               }
-    //               updatedAt
-    //             }
-    //           }
-    //         }
-    //       }
-    //       `,                                                        //GQL query
-    //     variables : {                                               //GQL variables
-    //         guid: "MjQ2MDk4N3xWSVp8REFTSEJPQVJEfGRhOjExMjA5Njk"
-    //       },
-    //     key: `INLINE-EXAMPLE`,                                      //Hash key that the has is stored against
-    //     matchFields: [                                              //Define which field(s) in the GQL response to 
-    //         {
-    //             dataObject: "data.actor.entity",                    // Root field that contains the data
-    //             components: []                                      // sub components to consider (if empty array the entire root object defined above is used )
-    //         }
-    //     ]
-    // }])
+    //an inline example (no helper function)
+    await detectDrift([{ 
+        name: `Inline Dashboard example`,                            //name of your config
+        query :`query ($guid: EntityGuid!){                         
+            actor {
+              entity(guid: $guid) {
+                ... on DashboardEntity {
+                  name
+                  guid
+                  pages {
+                    updatedAt
+                  }
+                  updatedAt
+                }
+              }
+            }
+          }
+          `,                                                        //GQL query
+        variables : {                                               //GQL variables
+            guid: "MjQ2MDk4N3xWSVp8REFTSEJPQVJEfGRhOjExMjA5Njk"
+          },
+        key: `INLINE-EXAMPLE`,                                      //Hash key that the has is stored against
+        matchFields: [                                              //Define which field(s) in the GQL response to 
+            {
+                dataObject: "data.actor.entity",                    // Root field that contains the data
+                components: []                                      // sub components to consider (if empty array the entire root object defined above is used )
+            }
+        ]
+    }])
 
     //end examples ---------------------------
 
