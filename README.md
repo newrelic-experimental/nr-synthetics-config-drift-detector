@@ -68,6 +68,15 @@ First install the dependencies:
 Then run with:
 `node drifter.js`
 
+## Alerting
+You can easily alert on drift detection by adding a [synthetic failure alert](https://docs.newrelic.com/docs/synthetics/synthetic-monitoring/using-monitors/alerts-synthetic-monitoring#alerts-existing-monitor).
+
+Alternatively you may wish to setup [NRQL based alerts](https://docs.newrelic.com/docs/alerts-applied-intelligence/new-relic-alerts/alert-conditions/create-nrql-alert-conditions) on the raw data. The data is by default stored in the `drifter_history` event type. If drift is detected for a rule then hashMatch will be false.
+
+You can create a dashboard that shows recent detections with the follwing NRQL:
+```
+from drifter_history select configName, hashKey since 2 week ago where hashMatch is false limit max 
+```
 
 ## Support
 
