@@ -3,9 +3,8 @@ const ACCOUNT_ID = "0"  // You account ID, this is the account data from this sy
 const REGION = "US"           // US or EU (for the account above)
 
 //If testign locally provide API keys here, otherwise should be specified as synthetic secure credentials DRIFTER_INSERT_KEY and DRIFTER_QUERY_KEY
-const LOCAL_TESTING_INSERT_KEY = ""  ///...NRAL
-const LOCAL_TESTING_QUERY_KEY  = "" //NRAK...
-
+// const LOCAL_TESTING_INSERT_KEY = ""  ///...NRAL
+// const LOCAL_TESTING_QUERY_KEY  = "" //NRAK...
 
 //Optional  settings that you can leave as is with the defualts usually
 const LOOK_BACK="since 48 hours ago" //where clause for looking back over data. ensur script runs more often than this!
@@ -32,12 +31,21 @@ const gqlQuery = async (query, variables) => {
         body: JSON.stringify({ "query": query, "variables": variables })
     }
     let body = await genericServiceCall([200],options,(body)=>{ return body})
+    let jsonBody={}
     try {
       if(isObject(body)) {
-        return body
+        jsonBody = body
       } else {
-        return JSON.parse(body)
+        jsonBody = JSON.parse(body)
       }  
+
+      //check for errors
+      if(jsonBody.errors && jsonBody.errors.length > 0) {
+        GQL_ERROR_DETECTED=true
+        console.log("!! GQL Query error detected:",jsonBody.errors)
+      }
+      return jsonBody
+
     } catch(e) {
         console.log("Error: Response from New Relic failed to parse",e)
         assert.fail(e)
@@ -172,6 +180,7 @@ const DRIFTER_VERSION= "1.0.0"
 const DEFAULT_TIMEOUT = 10000 //timeout on http requests
 let RUNNING_LOCALLY=false
 let FAIL_JOURNEY=false
+let GQL_ERROR_DETECTED=false
 
 /*
 *  ========== LOCAL TESTING CONFIGURATION ==================================
@@ -198,6 +207,10 @@ let crypto = require('crypto')
 
 let INSERT_KEY = $secure.DRIFTER_INSERT_KEY
 let QUERY_KEY = $secure.DRIFTER_QUERY_KEY
+
+if(!INSERT_KEY || !QUERY_KEY) {
+  assert.fail("API Keys are missing. Please provide via secure credentials as documented.")
+}
 
 const GRAPHQL_URL= REGION=="US" ? "https://api.newrelic.com/graphql" : "https://api.eu.newrelic.com/graphql"
 const EVENT_API_URL = REGION=="US" ? `https://insights-collector.newrelic.com/v1/accounts/${ACCOUNT_ID}/events` : `https://insights-collector.eu01.nr-data.net/v1/accounts/${ACCOUNT_ID}/events`
@@ -365,7 +378,7 @@ const drift_NotificationChannels = async () => {
                 }
               }`,
             variables : {
-                accountId: accountID,
+                accountId: parseInt(accountID),
                channelId:  channelID
               },
             key: `NOTIFYCHAN-${channelID}`,
@@ -667,42 +680,42 @@ async function runRules()  {
 
     //here are some examples wrapped in helper functions ----------------------------------
     await drift_NotificationChannels()
-    await drift_Dashboard()
-    await drift_Dashboard2()
-    await drift_NRQLPolicyConditions()
-    await drift_DropRules() 
-    await drift_NRQLExample1()
+    // await drift_Dashboard()
+    // await drift_Dashboard2()
+    // await drift_NRQLPolicyConditions()
+    // await drift_DropRules() 
+    // await drift_NRQLExample1()
 
 
-    //an inline example (no helper function)
-    await detectDrift([{ 
-        name: `Inline Dashboard example`,                            //name of your config
-        query :`query ($guid: EntityGuid!){                         
-            actor {
-              entity(guid: $guid) {
-                ... on DashboardEntity {
-                  name
-                  guid
-                  pages {
-                    updatedAt
-                  }
-                  updatedAt
-                }
-              }
-            }
-          }
-          `,                                                        //GQL query
-        variables : {                                               //GQL variables
-            guid: "MjQ2MDk4N3xWSVp8REFTSEJPQVJEfGRhOjExMjA5Njk"
-          },
-        key: `INLINE-EXAMPLE`,                                      //Hash key that the has is stored against
-        matchFields: [                                              //Define which field(s) in the GQL response to 
-            {
-                dataObject: "data.actor.entity",                    // Root field that contains the data
-                components: []                                      // sub components to consider (if empty array the entire root object defined above is used )
-            }
-        ]
-    }])
+    // //an inline example (no helper function)
+    // await detectDrift([{ 
+    //     name: `Inline Dashboard example`,                            //name of your config
+    //     query :`query ($guid: EntityGuid!){                         
+    //         actor {
+    //           entity(guid: $guid) {
+    //             ... on DashboardEntity {
+    //               name
+    //               guid
+    //               pages {
+    //                 updatedAt
+    //               }
+    //               updatedAt
+    //             }
+    //           }
+    //         }
+    //       }
+    //       `,                                                        //GQL query
+    //     variables : {                                               //GQL variables
+    //         guid: "MjQ2MDk4N3xWSVp8REFTSEJPQVJEfGRhOjExMjA5Njk"
+    //       },
+    //     key: `INLINE-EXAMPLE`,                                      //Hash key that the has is stored against
+    //     matchFields: [                                              //Define which field(s) in the GQL response to 
+    //         {
+    //             dataObject: "data.actor.entity",                    // Root field that contains the data
+    //             components: []                                      // sub components to consider (if empty array the entire root object defined above is used )
+    //         }
+    //     ]
+    // }])
 
     //end examples ---------------------------
 
@@ -722,6 +735,10 @@ try {
             console.log("Completed successfully but drift was detected.")
             setAttribute("driftFound",true)
             assert.fail("Some resources appear to have suffered config drift. Check the log.")
+        }
+
+        if(GQL_ERROR_DETECTED) {
+          assert.fail("GraphQL query error detected during run, please check the queries are valid and variable types are correct.")
         }
     })
 } catch(e) {
