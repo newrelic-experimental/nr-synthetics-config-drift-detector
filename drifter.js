@@ -7,9 +7,12 @@ const REGION = "US"           // US or EU (for the account above)
 // const LOCAL_TESTING_QUERY_KEY  = "" //NRAK...
 
 //Optional  settings that you can leave as is with the defualts usually
-const LOOK_BACK="since 48 hours ago" //where clause for looking back over data. ensur script runs more often than this!
-const CUSTOM_EVENT_TYPE=`drifter_history` //event type to record hashes
 
+const LOOK_BACK="since 48 hours ago since 10 minutes ago" //where clause for looking back over data. 
+// Note: We ignore last 10 minutes data as synhteics will auto retry on failure, this means that the first retry succeeds. This is only relevant if using a synhtetic alert rather than an NRQL alert; see ASSERT_FAIL_ON_ERROR setting.
+
+const CUSTOM_EVENT_TYPE=`drifter_history` //event type to record hashes
+const ASSERT_FAIL_ON_ERROR = false // If true then script will assert failure on drift detection. This is useful if alerting on script failure, but less useful if alerting with NRQL. 
 
 /* 
 * ========================= Drifter Detection ===================
@@ -735,7 +738,12 @@ try {
         } else {
             console.log("Completed successfully but drift was detected.")
             setAttribute("driftFound",true)
-            assert.fail("Some resources appear to have suffered config drift. Check the log.")
+            
+            if(ASSERT_FAIL_ON_ERROR) {
+              assert.fail("Some resources appear to have suffered config drift. Check the log.") 
+              // Synthetic tests auto retry up to three times on failure which leads to confusing data.
+            }
+
         }
 
         if(GQL_ERROR_DETECTED) {
