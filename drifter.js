@@ -8,7 +8,7 @@ const REGION = "US"           // US or EU (for the account above)
 
 //Optional  settings that you can leave as is with the defualts usually
 
-const LOOK_BACK="since 48 hours ago since 10 minutes ago" //where clause for looking back over data. 
+const LOOK_BACK="since 48 hours ago until 10 minutes ago" //where clause for looking back over data. 
 // Note: We ignore last 10 minutes data as synhteics will auto retry on failure, this means that the first retry succeeds. This is only relevant if using a synhtetic alert rather than an NRQL alert; see ASSERT_FAIL_ON_ERROR setting.
 
 const CUSTOM_EVENT_TYPE=`drifter_history` //event type to record hashes
